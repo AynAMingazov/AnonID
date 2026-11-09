@@ -1,32 +1,31 @@
 # AnonID
 
-My course project at Kazan Federal University (2025-2026), grade excellent.
+Access verification without transfer of personal data.
+Course project, Kazan Federal University, 2026. Grade: excellent.
 
-Idea: verify that a person has a right (for example to enter an event) without giving his personal data to everyone who checks him.
+## Problem
+Registration systems collect name, phone, date of birth, passport. The check usually needs one fact: the person has the right to enter.
 
-## Why
-When you register for some event they ask name, phone, birthday, sometimes passport. And then all this lies in some excel or database, and later it leaks. I think in most cases organizer doesnt need it, he only needs to know "this person can enter".
+## Solution
+1. Issuer verifies the person once and signs a token.
+2. Token contains: scope, right, issue time, expiry, random id. No personal data.
+3. Verifier checks signature, scope, expiry and one-time use. Works offline.
 
-## How it works
-1. Issuer checks the person one time and gives him a signed token (can be QR)
-2. Token has only: event, right, time of issue, expire time and random id. No name, no phone
-3. Verifier at the entrance checks signature with public key, event, expire time and that token was not used before
+Ed25519 signatures. Used tokens are stored as random ids only.
 
-Signature is Ed25519. Used tokens are saved in SQLite only as random id, so even if this db leaks there is nothing about people.
+## Threats
+| Threat | Control |
+|---|---|
+| Forged token | Signature |
+| Replay | One-time id |
+| Wrong event | Scope |
+| Old token | Expiry |
+| Stolen token | Revocation list |
 
-## What it protects from
-- fake or changed token - signature check
-- same token two times (replay) - one time id
-- token from other event - scope check
-- old token - expire time
-- stolen token - revoke list
+Not covered: token is a bearer credential. Device binding is described in the paper, not implemented.
 
-What is not solved: token works like a ticket, who shows it first goes in. Can be fixed by binding token to phone key, I wrote about it in the paper but didnt implement.
-
-## Where AI can be used here
-In the paper I didnt use AI, but I think it fits:
-- anomaly detection on the verifier side (many failed tokens from one gate = someone tries to brute force)
-- face liveness check (for example MiniFASNet) if token is bound to a photo, but then we again work with biometric data, so it is a trade off
+## AI extension
+Anomaly detection on failed checks per gate. Liveness check if the token is bound to a photo; this brings back biometric data.
 
 ## Run
 ```
@@ -35,4 +34,4 @@ python demo.py
 pytest -q
 ```
 
-Stack: Python, cryptography (Ed25519), SQLite, pytest
+Python, cryptography, SQLite.
