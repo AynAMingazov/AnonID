@@ -1,44 +1,38 @@
-# AnonID — identity verification without transferring personal data
+# AnonID
 
-Course project, Kazan Federal University, Institute of Computational Mathematics and Information Technologies (2025–2026). Grade: **excellent**.
+My course project at Kazan Federal University (2025-2026), grade excellent.
 
-## Problem
-Registration for events, online services and access systems usually collects far more personal data than the task requires: full name, phone, date of birth, sometimes passport details. Every such database becomes a leak risk for the people and a liability for the organiser.
+Idea: verify that a person has a right (for example to enter an event) without giving his personal data to everyone who checks him.
 
-## Idea
-Check a person's right **once** and give them a short signed token that proves only that right, for example *"entry to event X until 18:00"*. The entrance terminal verifies the token offline with the issuer's public key and never receives the person's data.
+## Why
+When you register for some event they ask name, phone, birthday, sometimes passport. And then all this lies in some excel or database, and later it leaks. I think in most cases organizer doesnt need it, he only needs to know "this person can enter".
 
-```
-Person ──(proves right once)──► Issuer ──(signed token, no PII)──► Person
-Person ──(shows token / QR)──► Verifier: signature ✓  scope ✓  expiry ✓  not used ✓
-```
+## How it works
+1. Issuer checks the person one time and gives him a signed token (can be QR)
+2. Token has only: event, right, time of issue, expire time and random id. No name, no phone
+3. Verifier at the entrance checks signature with public key, event, expire time and that token was not used before
 
-## Security properties
-| Threat | Protection |
-|---|---|
-| Forged or modified token | Ed25519 signature over the whole payload |
-| Re-use of a copied token (replay) | one-time `token_id`, atomic "used" mark in SQLite |
-| Token from another event | scope check |
-| Old token | expiry with small clock-skew tolerance |
-| Lost / stolen token | revocation list |
-| Leak of the verifier database | it stores only random ids and timestamps, no personal data |
+Signature is Ed25519. Used tokens are saved in SQLite only as random id, so even if this db leaks there is nothing about people.
 
-Limitations: a token is a bearer credential (whoever shows it first gets in); binding to a device key or a photo check at the gate are possible extensions.
+## What it protects from
+- fake or changed token - signature check
+- same token two times (replay) - one time id
+- token from other event - scope check
+- old token - expire time
+- stolen token - revoke list
+
+What is not solved: token works like a ticket, who shows it first goes in. Can be fixed by binding token to phone key, I wrote about it in the paper but didnt implement.
+
+## Where AI can be used here
+In the paper I didnt use AI, but I think it fits:
+- anomaly detection on the verifier side (many failed tokens from one gate = someone tries to brute force)
+- face liveness check (for example MiniFASNet) if token is bound to a photo, but then we again work with biometric data, so it is a trade off
 
 ## Run
-```bash
+```
 pip install -r requirements.txt
 python demo.py
 pytest -q
 ```
 
-## Structure
-```
-anonid/tokens.py   claim model, issuer, verifier
-anonid/store.py    used / revoked token ids (SQLite)
-demo.py            end-to-end scenario: valid, replay, forgery, wrong scope
-tests/             unit tests for every rule above
-```
-
-## Stack
-Python 3.10+, `cryptography` (Ed25519), SQLite, pytest
+Stack: Python, cryptography (Ed25519), SQLite, pytest
